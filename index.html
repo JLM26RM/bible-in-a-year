@@ -290,7 +290,7 @@ document.getElementById("file").onchange = (e)=>{
   r.readAsText(f);
 };
 
-let mode = "reading", psub = "mine";
+let mode = "reading", psub = "groups";
 function ensureGroupFrame(src){
   const f = document.getElementById("groupFrame");
   if(src){ f.src = src; f.dataset.loaded="1"; return; }
