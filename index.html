@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Bible Plan">
+<meta name="apple-mobile-web-app-title" content="Life">
 <meta name="theme-color" content="#1f2a44">
-<title>Bible in a Year — 261 Day Plan</title>
+<title>Life — Read the Word, Pray Together</title>
 <style>
   :root{
     --bg:#f4f1ea; --card:#fffdf8; --ink:#23262e; --muted:#7c8088;
@@ -109,29 +109,47 @@
   .pcat{flex:0 0 auto;align-self:center;font-size:10px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;
        color:#fff;border-radius:6px;padding:2px 7px;cursor:pointer}
   .pcat.urgent{background:#b3392b} .pcat.daily{background:#2c5d63} .pcat.request{background:#5b4a86}
+  .apptabs{display:flex;gap:8px;margin-top:11px}
+  .apptabs button{flex:1;font:inherit;font-size:14px;font-weight:700;color:#fff;background:rgba(255,255,255,.10);
+       border:1px solid rgba(255,255,255,.22);border-radius:10px;padding:9px;cursor:pointer}
+  .apptabs button.active{background:var(--gold);border-color:var(--gold);color:#1c1a12}
+  #readControls,#prayControls{margin-top:11px}
+  .rcap{font-size:12px;color:rgba(255,255,255,.82);flex:1;min-width:0}
+  .praySeg{width:100%}
+  .praySeg button{flex:1}
+  #groups{margin-top:2px}
+  #groupFrame{width:100%;height:78vh;border:1px solid var(--line);border-radius:14px;background:var(--card)}
 </style>
 </head>
 <body>
 <header>
-  <div class="hdrtop">
-    <div class="titlewrap">
-      <h1>Bible in a Year &mdash; 261-Day Plan</h1>
-      <div class="sub">Built-in slack: miss up to 2 days a week and you&rsquo;re still on track. (But as Ray Comfort would say: &ldquo;No read no feed&rdquo; &#128578;)</div>
-    </div>
-    <label class="startbox">Start date<input type="date" id="startDate"></label>
+  <div class="titlewrap">
+    <h1>Life</h1>
+    <div class="sub">Read the Word. Pray together.</div>
   </div>
-  <div class="barwrap"><div class="bar" id="bar"></div></div>
-  <div class="stat"><span id="count">0 of 261 days</span><span><b id="pct">0%</b> complete</span></div>
-  <div class="tools">
-    <span class="seg" id="verSeg"><button data-ver="ESV" class="active">ESV</button><button data-ver="LSB">LSB</button><button data-ver="NASB">NASB</button><button data-ver="NKJV">NKJV</button><button data-ver="CSB">CSB</button></span>
-    <button id="fAll" class="active">All</button>
-    <button id="fTodo">Unread</button>
-    <button id="jump">Next unread &darr;</button>
-    <button id="exp">Export</button>
-    <button id="imp">Import</button>
-    <button id="reset">Reset</button>
-    <button id="pray">Prayer list</button>
-    <a class="toolbtn" href="https://prayer.nailingthetruth.com" target="_blank" rel="noopener">&#128591; Group prayer board &#8599;</a>
+  <div class="apptabs">
+    <button id="tabRead" class="active">&#128214; Reading</button>
+    <button id="tabPray">&#128591; Prayer</button>
+  </div>
+  <div id="readControls">
+    <div class="hdrtop">
+      <div class="rcap">Bible in a Year &middot; 261-day plan. Miss up to 2 days a week and stay on track. (As Ray Comfort says: &ldquo;No read no feed&rdquo; &#128578;)</div>
+      <label class="startbox">Start date<input type="date" id="startDate"></label>
+    </div>
+    <div class="barwrap"><div class="bar" id="bar"></div></div>
+    <div class="stat"><span id="count">0 of 261 days</span><span><b id="pct">0%</b> complete</span></div>
+    <div class="tools">
+      <span class="seg" id="verSeg"><button data-ver="ESV" class="active">ESV</button><button data-ver="LSB">LSB</button><button data-ver="NASB">NASB</button><button data-ver="NKJV">NKJV</button><button data-ver="CSB">CSB</button></span>
+      <button id="fAll" class="active">All</button>
+      <button id="fTodo">Unread</button>
+      <button id="jump">Next unread &darr;</button>
+      <button id="exp">Export</button>
+      <button id="imp">Import</button>
+      <button id="reset">Reset</button>
+    </div>
+  </div>
+  <div id="prayControls" style="display:none">
+    <span class="seg praySeg" id="praySeg"><button data-psub="mine" class="active">My prayers</button><button data-psub="groups">Group lists</button></span>
   </div>
 </header>
 <main>
@@ -148,6 +166,9 @@
       <button class="catbtn" data-cat="urgent">Urgent</button>
     </div>
     <div id="prayList"></div>
+  </section>
+  <section id="groups" style="display:none">
+    <iframe id="groupFrame" title="Group prayer lists" src="about:blank"></iframe>
   </section>
 </main>
 <footer>Progress saves on this device. Use Export/Import to move it between phone and computer.</footer>
@@ -269,13 +290,30 @@ document.getElementById("file").onchange = (e)=>{
   r.readAsText(f);
 };
 
-function setView(v){
-  view = v;
-  document.getElementById("list").style.display   = v==="pray" ? "none" : "";
-  document.getElementById("prayer").style.display = v==="pray" ? "" : "none";
-  document.getElementById("pray").classList.toggle("active", v==="pray");
-  if(v==="pray") renderPrayers();
+let mode = "reading", psub = "mine";
+function ensureGroupFrame(src){
+  const f = document.getElementById("groupFrame");
+  if(src){ f.src = src; f.dataset.loaded="1"; return; }
+  if(!f.dataset.loaded){ f.src = "https://prayer.nailingthetruth.com/?embed=1"; f.dataset.loaded="1"; }
 }
+function applyView(){
+  const reading = mode==="reading";
+  document.getElementById("readControls").style.display = reading ? "" : "none";
+  document.getElementById("list").style.display = reading ? "" : "none";
+  document.getElementById("prayControls").style.display = reading ? "none" : "";
+  document.getElementById("tabRead").classList.toggle("active", reading);
+  document.getElementById("tabPray").classList.toggle("active", !reading);
+  const showMine = !reading && psub==="mine", showGroups = !reading && psub==="groups";
+  document.getElementById("prayer").style.display = showMine ? "" : "none";
+  document.getElementById("groups").style.display = showGroups ? "" : "none";
+  document.querySelectorAll("#praySeg button").forEach(x=>x.classList.toggle("active", x.getAttribute("data-psub")===psub));
+  if(showMine) renderPrayers();
+  if(showGroups) ensureGroupFrame();
+}
+function setView(v){ mode = (v==="pray") ? "prayer" : "reading"; applyView(); }
+document.getElementById("tabRead").onclick = ()=>{ mode="reading"; applyView(); };
+document.getElementById("tabPray").onclick = ()=>{ mode="prayer"; applyView(); };
+document.querySelectorAll("#praySeg button").forEach(b=>{ b.onclick=()=>{ psub=b.getAttribute("data-psub"); applyView(); }; });
 let addCat = "request";
 const CAT_ORDER = ["urgent","daily","request"];
 const CAT_LABEL = {urgent:"Urgent", daily:"Daily", request:"Request"};
@@ -312,7 +350,6 @@ function renderPrayers(){
   el.innerHTML = shown ? html
     : '<div class="empty">No prayers yet.<br>Pick a section above, type one, and press Enter.</div>';
 }
-document.getElementById("pray").onclick = ()=> setView(view==="pray"?"read":"pray");
 document.querySelectorAll(".catbtn").forEach(b=>{
   b.onclick = ()=>{ addCat = b.getAttribute("data-cat");
     document.querySelectorAll(".catbtn").forEach(x=>x.classList.toggle("active", x===b)); };
@@ -346,6 +383,11 @@ startEl.addEventListener("change", ()=>{ localStorage.setItem("bibleplan_start",
 
 document.querySelectorAll("#verSeg button").forEach(b=>b.classList.toggle("active", b.getAttribute("data-ver")===version));
 render();
+const _join = new URLSearchParams(location.search).get("join");
+if(_join){ mode="prayer"; psub="groups";
+  ensureGroupFrame("https://prayer.nailingthetruth.com/?embed=1&join="+encodeURIComponent(_join));
+  history.replaceState({}, "", location.pathname); }
+applyView();
 </script>
 </body>
 </html>
