@@ -116,7 +116,8 @@
   #readControls,#prayControls{margin-top:11px}
   .rcap{font-size:12px;color:rgba(255,255,255,.82);flex:1;min-width:0}
   .praySeg{width:100%}
-  .praySeg button{flex:1}
+  .praySeg button{flex:1;color:#fff;background:rgba(255,255,255,.12);font-weight:700}
+  .praySeg button.active{color:#1c1a12;background:var(--gold)}
   #groups{margin-top:2px}
   #groupFrame{width:100%;height:78vh;border:1px solid var(--line);border-radius:14px;background:var(--card)}
 </style>
@@ -149,7 +150,7 @@
     </div>
   </div>
   <div id="prayControls" style="display:none">
-    <span class="seg praySeg" id="praySeg"><button data-psub="mine" class="active">My prayers</button><button data-psub="groups">Group lists</button></span>
+    <span class="seg praySeg" id="praySeg"><button data-psub="mine">My Prayers</button><button data-psub="groups" class="active">Group Prayers</button></span>
   </div>
 </header>
 <main>
