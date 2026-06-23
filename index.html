@@ -146,6 +146,9 @@
   .rtext sup{font-size:11px;color:var(--gold);font-weight:800;margin-right:1px;vertical-align:super}
   .rattr{margin-top:16px;font-size:12px;color:var(--muted);font-style:italic}
   .rload{color:var(--muted);text-align:center;padding:24px 10px}
+  .rtop{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+  .rback{font:inherit;font-size:13px;font-weight:700;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 13px;cursor:pointer}
+  .rtopday{font-size:13px;font-weight:700;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -242,7 +245,7 @@ function grp(cls,label,arr){
 let pos = null;
 try { pos = JSON.parse(localStorage.getItem("bibleplan_pos") || "null"); } catch(e){ pos = null; }
 if(!pos || !pos.day){ const u = PLAN.find(d=>!done[d.d]); pos = {day: u ? u.d : 1, idx: 0}; }
-let rState = "reading";
+let rView = "list";
 if(version!=="web" && version!=="kjv") version = "web";
 let renderToken = 0;
 function savePos(){ try{ localStorage.setItem("bibleplan_pos", JSON.stringify(pos)); }catch(e){} }
@@ -255,6 +258,31 @@ function updateProgress(){ const n=Object.values(done).filter(Boolean).length, p
   document.getElementById("bar").style.width=pct+"%";
   document.getElementById("count").textContent=n+" of "+PLAN.length+" days";
   document.getElementById("pct").textContent=pct+"%"; }
+
+function grpPlain(cls,label,arr){
+  if(!arr||!arr.length) return "";
+  return '<div class="grp"><span class="lbl '+cls+'">'+label+'</span><span class="refs">'+arr.join(" &middot; ")+'</span></div>';
+}
+function renderList(){
+  updateProgress();
+  const list = document.getElementById("list");
+  let html = "";
+  for(const d of PLAN){
+    const val = done[d.d], isDone = !!val;
+    const inProg = !isDone && pos.day===d.d && pos.idx>0;
+    let read = '<div class="read"></div>';
+    if(isDone){ read = (typeof val==="string")
+      ? '<div class="read"><div class="wd">'+fmtWeekday(val)+'</div><div>'+fmtDate(val)+'</div></div>'
+      : '<div class="read"><div class="wd">Read</div></div>'; }
+    else if(inProg){ read = '<div class="read"><div class="wd" style="color:var(--gold)">Resume</div></div>'; }
+    html += '<div class="day'+(isDone?' done':'')+'" data-open="'+d.d+'">'
+      + '<div class="chk">'+(isDone?'✓':'')+'</div>'
+      + '<div class="body"><div class="dnum">Day '+d.d+'</div>'
+      + grpPlain("ot","OT",d.ot)+grpPlain("nt","NT",d.nt)+grpPlain("wis","Ps/Prov",d.wis)
+      + '</div>'+read+'</div>';
+  }
+  list.innerHTML = html;
+}
 
 async function fetchChapter(ref){
   const key = "btext_"+version+"_"+ref;
@@ -274,32 +302,11 @@ async function renderReader(){
   const day = pos.day, passages = dayPassages(day);
   if(pos.idx>=passages.length) pos.idx=passages.length-1;
   if(pos.idx<0) pos.idx=0;
-  const nav = '<div class="rday">'
-    + '<button class="dnav" id="dPrev"'+(day<=1?' disabled':'')+'>&lsaquo;</button>'
-    + '<span>Day '+day+' of '+PLAN.length+'</span>'
-    + '<button class="dnav" id="dNext"'+(day>=PLAN.length?' disabled':'')+'>&rsaquo;</button></div>';
-  if(rState==="done"){
-    const nd=day+1, fin=nd>PLAN.length;
-    el.innerHTML = nav + '<div class="reader"><div class="rmain">'
-      + '<div class="rdone">Day '+day+' complete &#10003;</div>'
-      + '<div class="rcount">'+(typeof done[day]==="string"?"Read "+fmtWeekday(done[day])+" "+fmtDate(done[day]):"Well done")+'</div>'
-      + '</div><div class="rctrls">'
-      + (fin?'<button class="primary" id="rRestart">You finished the whole plan! &#127881;</button>'
-            :'<button class="primary" id="rStart">Start Day '+nd+' &rarr;</button>')
-      + '</div></div>';
-    return;
-  }
-  const p = passages[pos.idx];
-  if(rState==="paused"){
-    el.innerHTML = nav + '<div class="reader"><div class="rmain">'
-      + '<div class="rstream '+p.cls+'">Paused</div>'
-      + '<div class="rref">'+p.ref+'</div>'
-      + '<div class="rcount">Day '+day+' &middot; passage '+(pos.idx+1)+' of '+passages.length+'</div>'
-      + '</div><div class="rctrls"><button class="primary" id="rResume">Resume reading</button></div></div>';
-    return;
-  }
-  const last = pos.idx>=passages.length-1;
-  el.innerHTML = nav + '<div class="reader">'
+  const p = passages[pos.idx], last = pos.idx>=passages.length-1;
+  el.innerHTML =
+    '<div class="rtop"><button class="rback" id="rDays">&lsaquo; All days</button>'
+    + '<span class="rtopday">Day '+day+' of '+PLAN.length+'</span></div>'
+    + '<div class="reader">'
     + '<div class="rhead"><span class="rstream '+p.cls+'">'+p.label+'</span>'
     + '<span class="rrefh">'+p.ref+'</span>'
     + '<span class="rprog">'+(pos.idx+1)+' of '+passages.length+'</span></div>'
@@ -318,38 +325,42 @@ async function renderReader(){
   }catch(e){
     if(tok!==renderToken) return;
     const tt = document.getElementById("rtext");
-    if(tt) tt.innerHTML = '<div class="rload">Could not load the text right now. Check your connection, then tap Pause and Resume to retry.</div>';
+    if(tt) tt.innerHTML = '<div class="rload">Could not load the text right now. Check your connection, then tap Pause and open the day again.</div>';
   }
 }
 
+function renderReading(){ if(rView==="read") renderReader(); else renderList(); }
+function openDay(day){
+  if(!(pos.day===day && pos.idx>0 && !done[day])) pos = {day:day, idx:0};
+  rView = "read"; savePos(); renderReader();
+  try{ window.scrollTo(0,0); }catch(e){}
+}
+
 document.getElementById("list").addEventListener("click", e=>{
-  if(e.target.closest("#dPrev")){ if(pos.day>1){ pos.day--; pos.idx=0; rState="reading"; savePos(); renderReader(); } return; }
-  if(e.target.closest("#dNext")){ if(pos.day<PLAN.length){ pos.day++; pos.idx=0; rState="reading"; savePos(); renderReader(); } return; }
+  const card = e.target.closest("[data-open]");
+  if(card){ openDay(+card.getAttribute("data-open")); return; }
+  if(e.target.closest("#rDays")){ rView="list"; savePos(); renderList(); return; }
   if(e.target.closest("#rBack")){ if(pos.idx>0){ pos.idx--; savePos(); renderReader(); } return; }
-  if(e.target.closest("#rPause")){ rState="paused"; savePos(); renderReader(); return; }
-  if(e.target.closest("#rResume")){ rState="reading"; renderReader(); return; }
+  if(e.target.closest("#rPause")){ rView="list"; savePos(); renderList(); toast("Saved your spot. Tap the day to resume."); return; }
   if(e.target.closest("#rNext")){
     const ps = dayPassages(pos.day);
     if(pos.idx<ps.length-1){ pos.idx++; savePos(); renderReader(); }
-    else { done[pos.day]=todayISO(); save(); rState="done"; savePos(); renderReader(); }
+    else { done[pos.day]=todayISO(); save(); const fin=pos.day; pos={day:Math.min(fin+1,PLAN.length), idx:0}; savePos(); rView="list"; renderList(); toast("Day "+fin+" complete ✓"); }
     return;
   }
-  if(e.target.closest("#rStart")){ if(pos.day<PLAN.length){ pos.day++; pos.idx=0; rState="reading"; savePos(); renderReader(); } return; }
-  if(e.target.closest("#rRestart")){ pos={day:1,idx:0}; rState="reading"; savePos(); renderReader(); return; }
 });
 
 document.querySelectorAll("#verSeg button").forEach(b=>{
   b.onclick = ()=>{ version = b.getAttribute("data-ver"); localStorage.setItem("bibleplan_ver", version);
     document.querySelectorAll("#verSeg button").forEach(x=>x.classList.toggle("active", x===b));
-    renderReader(); };
+    renderReading(); };
 });
 document.getElementById("today").onclick = ()=>{
   const u = PLAN.find(d=>!done[d.d]);
-  pos = {day: u ? u.d : PLAN.length, idx:0}; rState="reading"; savePos(); renderReader();
-  toast(u ? "Day "+u.d : "All days complete!");
+  openDay(u ? u.d : PLAN.length);
 };
 document.getElementById("reset").onclick = ()=>{
-  if(confirm("Clear all reading progress on this device?")){ done={}; pos={day:1,idx:0}; rState="reading"; save(); savePos(); renderReader(); toast("Progress cleared"); }
+  if(confirm("Clear all reading progress on this device?")){ done={}; pos={day:1,idx:0}; rView="list"; save(); savePos(); renderList(); toast("Progress cleared"); }
 };
 document.getElementById("exp").onclick = ()=>{
   const blob = new Blob([JSON.stringify(done)], {type:"application/json"});
@@ -362,7 +373,7 @@ document.getElementById("file").onchange = (e)=>{
   const f = e.target.files[0]; if(!f) return;
   const r = new FileReader();
   r.onload = ()=>{ try{ const obj=JSON.parse(r.result);
-    for(const k in obj) if(obj[k]) done[k]=obj[k]; save(); renderReader(); toast("Progress imported & merged");
+    for(const k in obj) if(obj[k]) done[k]=obj[k]; save(); renderReading(); toast("Progress imported & merged");
   }catch(err){ toast("Couldn't read that file"); } };
   r.readAsText(f);
 };
@@ -459,7 +470,7 @@ startEl.addEventListener("change", ()=>{ localStorage.setItem("bibleplan_start",
   if(startEl.value) toast("Start date saved"); });
 
 document.querySelectorAll("#verSeg button").forEach(b=>b.classList.toggle("active", b.getAttribute("data-ver")===version));
-renderReader();
+renderReading();
 const _join = new URLSearchParams(location.search).get("join");
 if(_join){ mode="prayer"; psub="groups";
   ensureGroupFrame("https://prayer.nailingthetruth.com/?embed=1&join="+encodeURIComponent(_join));
