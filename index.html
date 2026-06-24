@@ -169,7 +169,7 @@
     <div class="barwrap"><div class="bar" id="bar"></div></div>
     <div class="stat"><span id="count">0 of 261 days</span><span><b id="pct">0%</b> complete</span></div>
     <div class="tools">
-      <span class="seg" id="verSeg"><button data-ver="web" class="active">Modern</button><button data-ver="kjv">KJV</button></span>
+      <span class="seg" id="verSeg"><button data-ver="esv" class="active">ESV</button><button data-ver="web">Modern</button><button data-ver="kjv">KJV</button></span>
       <button id="today">Go to today</button>
       <button id="exp">Export</button>
       <button id="imp">Import</button>
@@ -246,7 +246,7 @@ let pos = null;
 try { pos = JSON.parse(localStorage.getItem("bibleplan_pos") || "null"); } catch(e){ pos = null; }
 if(!pos || !pos.day){ const u = PLAN.find(d=>!done[d.d]); pos = {day: u ? u.d : 1, idx: 0}; }
 let rView = "list";
-if(version!=="web" && version!=="kjv") version = "web";
+if(["esv","web","kjv"].indexOf(version)<0) version = "esv";
 let renderToken = 0;
 function savePos(){ try{ localStorage.setItem("bibleplan_pos", JSON.stringify(pos)); }catch(e){} }
 function dayPassages(n){ const d=PLAN[n-1], o=[];
@@ -285,6 +285,11 @@ function renderList(){
 }
 
 async function fetchChapter(ref){
+  if(version==="esv"){
+    const r = await fetch("https://prayer.nailingthetruth.com/api/esv?ref="+encodeURIComponent(ref));
+    if(!r.ok) throw new Error("esv");
+    return await r.json();   // {verses,name} — not cached (ESV terms)
+  }
   const key = "btext_"+version+"_"+ref;
   try{ const c=localStorage.getItem(key); if(c) return JSON.parse(c); }catch(e){}
   const url = "https://bible-api.com/" + ref.replace(/ /g,"+") + "?translation=" + version;
