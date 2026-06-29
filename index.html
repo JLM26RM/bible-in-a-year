@@ -193,7 +193,7 @@
     <div class="barwrap"><div class="bar" id="bar"></div></div>
     <div class="stat"><span id="count">0 of 261 days</span><span><b id="pct">0%</b> complete</span></div>
     <div class="tools">
-      <span class="seg" id="verSeg"><button data-ver="esv" class="active">ESV</button><button data-ver="nkjv">NKJV</button><button data-ver="nasb">NASB</button><button data-ver="csb">CSB</button><button data-ver="web">Modern</button><button data-ver="kjv">KJV</button></span>
+      <span class="seg" id="verSeg"><button data-ver="esv" class="active">ESV</button><button data-ver="lsb">LSB</button><button data-ver="nkjv">NKJV</button><button data-ver="nasb">NASB</button><button data-ver="csb">CSB</button><button data-ver="kjv">KJV</button></span>
       <button id="today">Go to today</button>
       <button id="exp">Export</button>
       <button id="imp">Import</button>
@@ -286,7 +286,7 @@ function loadPos(){ let p=null;
   return p; }
 let pos = loadPos();
 let rView = "list";
-if(["esv","nkjv","nasb","csb","web","kjv"].indexOf(version)<0) version = "esv";
+if(["esv","lsb","nkjv","nasb","csb","kjv"].indexOf(version)<0) version = "esv";
 let renderToken = 0;
 function savePos(){ try{ localStorage.setItem(posKey(), JSON.stringify(pos)); }catch(e){} }
 function switchPlan(p){
@@ -341,6 +341,11 @@ function renderList(){
   list.innerHTML = html;
 }
 
+function lsbCard(ref){
+  return '<div class="rload" style="text-align:center">The LSB isn’t offered through a free Bible API, so it opens on the official LSB site.'
+    + '<div style="margin-top:18px"><a class="ropen" href="https://read.lsbible.org/?q='+encodeURIComponent(ref)
+    + '" target="_blank" rel="noopener">Open '+ref+' in the LSB &#8599;</a></div></div>';
+}
 async function fetchChapter(ref){
   if(version==="esv"){
     const r = await fetch("https://prayer.nailingthetruth.com/api/esv?ref="+encodeURIComponent(ref));
@@ -377,12 +382,13 @@ async function renderReader(){
     + '<div class="rhead"><span class="rstream '+p.cls+'">'+p.label+'</span>'
     + '<span class="rrefh">'+p.ref+'</span>'
     + '<span class="rprog">'+(pos.idx+1)+' of '+passages.length+'</span></div>'
-    + '<div class="rtext" id="rtext"><div class="rload">Loading '+p.ref+'&hellip;</div></div>'
+    + '<div class="rtext" id="rtext">'+(version==="lsb"?lsbCard(p.ref):'<div class="rload">Loading '+p.ref+'&hellip;</div>')+'</div>'
     + '<div class="rctrls">'
     + '<button id="rPause">Pause</button>'
     + (pos.idx>0?'<button id="rBack">&larr; Back</button>':'')
     + '<button class="primary" id="rNext">'+(last?'Finish day &#10003;':'Next &rarr;')+'</button>'
     + '</div></div>';
+  if(version==="lsb") return;
   try{
     const data = await fetchChapter(p.ref);
     if(tok!==renderToken) return;
